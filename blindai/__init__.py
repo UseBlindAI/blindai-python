@@ -46,6 +46,8 @@ from .exceptions import (
 from .hooks import EventHooks, EventType, SecurityEvent
 from .models import ProtectionResult, SDKConfig
 from .guard import Guard
+from .client import ToolGuard
+from .client import ToolGuard
 from .async_client import AsyncToolGuard
 from .types import (
     # Literal types for autocomplete
@@ -97,6 +99,8 @@ __all__ = [
     # Original entry points
     "Guard",
     "AsyncToolGuard",
+    "ToolGuard",
+    "ToolGuard",
     # Exceptions
     "BlindAIError",
     "ThreatBlockedError",
