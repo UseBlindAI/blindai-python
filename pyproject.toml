@@ -69,7 +69,7 @@ Changelog = "https://github.com/useblindai/blindai-python/blob/main/CHANGELOG.md
 Issues = "https://github.com/useblindai/blindai-python/issues"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 
 [tool.setuptools.package-data]
 blindai = ["py.typed"]
