@@ -46,6 +46,7 @@ from .exceptions import (
 from .hooks import EventHooks, EventType, SecurityEvent
 from .models import ProtectionResult, SDKConfig
 from .guard import Guard
+from .async_client import AsyncToolGuard
 from .types import (
     # Literal types for autocomplete
     Policy,
@@ -86,6 +87,7 @@ BlindAI = Guard
 
 # Add sync/async method aliases to Guard for Basalt-style API
 Guard.check_sync = Guard.check  # type: ignore[attr-defined]
+Guard.shutdown = Guard.close  # type: ignore[attr-defined]
 
 __version__ = "0.1.0"
 
@@ -94,6 +96,7 @@ __all__ = [
     "BlindAI",
     # Original entry points
     "Guard",
+    "AsyncToolGuard",
     # Exceptions
     "BlindAIError",
     "ThreatBlockedError",
