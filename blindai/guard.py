@@ -92,6 +92,7 @@ class Guard(ToolGuard):
         fail_open: bool = False,
         verify_ssl: bool = True,
         circuit_breaker: Optional[CircuitBreakerConfig] = None,
+        sandbox: bool = False,
     ) -> None:
         """Initialize Guard with API credentials and options.
         
@@ -110,6 +111,18 @@ class Guard(ToolGuard):
             verify_ssl: Whether to verify SSL certificates.
             circuit_breaker: Optional :class:`CircuitBreakerConfig` for
                 automatic failure handling and recovery.
+            sandbox: Enable sandbox mode for testing. Sandbox mode:
+            
+                - Returns predictable responses for testing
+                - Does not count against rate limits  
+                - Uses mock threat detection
+                - No API key required
+            sandbox: Enable sandbox mode for testing. Sandbox mode:
+            
+                - Returns predictable responses for testing
+                - Does not count against rate limits  
+                - Uses mock threat detection
+                - No API key required
         
         Raises:
             ConfigurationError: If configuration is invalid (e.g., negative timeout).
@@ -128,9 +141,12 @@ class Guard(ToolGuard):
                     ),
                 )
         """
+        # Use sandbox URL if sandbox mode enabled
+        effective_url = "https://web-production-b14fb.up.railway.app/sandbox" if sandbox else base_url
+        
         super().__init__(
-            api_key=api_key,
-            base_url=base_url,
+            api_key=api_key or ("sandbox_key" if sandbox else None),
+            base_url=effective_url,
             timeout=timeout,
             max_retries=max_retries,
             retry_backoff=retry_backoff,
