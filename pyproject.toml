@@ -1,92 +1,55 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "blindai-sdk"
 version = "0.1.0"
-description = "Security guardrails for AI agents - protect against prompt injection, data leakage, and unauthorized actions"
+description = "Fail-closed Python client for the BlindAI authorization API"
 readme = "README.md"
-license = { text = "MIT" }
 requires-python = ">=3.9"
-authors = [
-    { name = "BlindAI Team", email = "support@useblindai.com" }
-]
-keywords = [
-    "ai-security",
-    "llm",
-    "guardrails",
-    "prompt-injection",
-    "ai-agents",
-    "security",
-    "pii-detection"
-]
+license = { file = "LICENSE" }
+authors = [{ name = "BlindAI" }]
+keywords = ["ai", "security", "llm", "prompt-injection", "agents", "authorization"]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Security",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Typing :: Typed",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Typing :: Typed",
 ]
 
-dependencies = [
-    "httpx>=0.24.0",
-    "pydantic>=2.0.0",
-]
+# One runtime dependency. pydantic was dropped with the rest of the fat client: a wire client that
+# parses one response shape does not need a validation framework, and every dependency in a
+# security client is a dependency a customer has to audit.
+dependencies = ["httpx>=0.24.0"]
 
 [project.optional-dependencies]
-langchain = ["langchain>=0.1.0"]
-llamaindex = ["llama-index>=0.10.0"]
-crewai = ["crewai>=0.1.0"]
-openai = ["openai>=1.0.0"]
-all = [
-    "langchain>=0.1.0",
-    "llama-index>=0.10.0",
-    "crewai>=0.1.0",
-    "openai>=1.0.0",
-]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.0.0",
-    "mypy>=1.0.0",
-    "ruff>=0.1.0",
-    "respx>=0.20.0",
-]
+dev = ["pytest>=7.4", "pytest-asyncio>=0.21", "mypy>=1.8", "ruff>=0.6"]
 
 [project.urls]
-Homepage = "https://useblindai.com"
-Documentation = "https://docs.useblindai.com"
-Repository = "https://github.com/useblindai/blindai-python"
-Changelog = "https://github.com/useblindai/blindai-python/blob/main/CHANGELOG.md"
-Issues = "https://github.com/useblindai/blindai-python/issues"
+Homepage = "https://github.com/UseBlindAI/blindai-python"
+Issues = "https://github.com/UseBlindAI/blindai-python/issues"
 
-[tool.setuptools.packages.find]
-where = ["."]
+[tool.hatch.build.targets.wheel]
+packages = ["blindai"]
 
-[tool.setuptools.package-data]
-blindai = ["py.typed"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
 
 [tool.ruff]
 line-length = 100
 target-version = "py39"
 
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
-
 [tool.mypy]
-python_version = "3.9"
+# No python_version: current mypy refuses 3.9 as a target. The package supports 3.9 via
+# `from __future__ import annotations`; CI runs the test suite on 3.9 itself, which is the check
+# that matters.
 strict = true
-warn_return_any = true
-warn_unused_ignores = true
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-testpaths = ["tests"]
+files = ["blindai"]
