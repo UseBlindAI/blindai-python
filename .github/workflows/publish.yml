@@ -1,0 +1,89 @@
+name: publish
+
+# Tag-triggered. Both invariants and the contract tests gate the publish, and that placement is the
+# point: this is the last moment before a version becomes installable, and a PyPI version is
+# immutable. A bypass that ships cannot be unshipped -- only yanked, while everyone who already
+# installed it keeps running it.
+#
+# These gates are `needs:` dependencies, not branch-protection rules. That distinction matters:
+# a required status check needs branch protection, which a private repository without a paid plan
+# cannot set. A `needs:` dependency is enforced by the workflow engine itself, so the publish job
+# genuinely cannot run when an invariant fails, plan or no plan.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  no-local-verdicts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: python scripts/no_local_verdicts.py blindai --parser parse.py
+
+  every-call-asks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/test_every_call_asks.py -p no:cacheprovider
+
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.9', '3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '${{ matrix.python }}' }
+      - run: pip install -e ".[dev]"
+      - run: pytest tests -p no:cacheprovider --ignore=tests/contract
+      - run: ruff check blindai tests
+      - run: mypy
+      - name: Tag matches package version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(python -c "import blindai; print(blindai.__version__)")"
+          [ "$tag" = "$pkg" ] || { echo "::error::tag v$tag != version $pkg"; exit 1; }
+
+  # Nothing is published that has not been run against a real server at least once. A missing
+  # secret FAILS this job rather than skipping it, so "we never checked" can never look green.
+  contract:
+    runs-on: ubuntu-latest
+    env:
+      BLINDAI_BASE_URL: ${{ secrets.BLINDAI_CONTRACT_BASE_URL }}
+      BLINDAI_API_KEY: ${{ secrets.BLINDAI_CONTRACT_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Secrets must exist
+        run: |
+          set -euo pipefail
+          missing=
+          [ -n "${BLINDAI_BASE_URL:-}" ] || missing="$missing BLINDAI_CONTRACT_BASE_URL"
+          [ -n "${BLINDAI_API_KEY:-}" ] || missing="$missing BLINDAI_CONTRACT_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::cannot publish without running against a real server; missing:$missing"
+            exit 1
+          fi
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/contract -p no:cacheprovider
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [no-local-verdicts, every-call-asks, verify, contract]
+    environment: release
+    permissions:
+      id-token: write          # PyPI trusted publishing; no long-lived token in a secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install build && python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
