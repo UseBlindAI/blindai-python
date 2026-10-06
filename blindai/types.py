@@ -77,4 +77,6 @@ class TokenGrant:
         expires_in = body.get("expires_in")
         if not isinstance(expires_in, int) or isinstance(expires_in, bool):
             raise ContractError("not a token grant: 'expires_in' is not an integer")
+        if expires_in <= 0:
+            raise ContractError("not a token grant: 'expires_in' is not positive")
         return cls(tokens=dict(tokens), expires_in=expires_in)

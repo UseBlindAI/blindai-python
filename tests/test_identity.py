@@ -58,3 +58,18 @@ def test_a_body_that_is_not_a_grant_is_a_contract_error(body):
     _seen, transport = recording(body)
     with pytest.raises(ContractError):
         client(transport).exchange_tokens("rs_secret", ["a-1"])
+
+
+def test_a_bare_string_of_agent_ids_is_refused_before_any_request():
+    """list("a-1") is ["a", "-", "1"]: three agent ids nobody meant (cold review of #3)."""
+    seen, transport = recording({"tokens": {}, "expires_in": 60})
+    with pytest.raises(TypeError):
+        client(transport).exchange_tokens("rs_secret", "a-1")
+    assert seen == []
+
+
+@pytest.mark.parametrize("expires_in", [0, -5])
+def test_a_grant_that_has_already_expired_is_a_contract_error(expires_in):
+    _seen, transport = recording({"tokens": {"a-1": "t"}, "expires_in": expires_in})
+    with pytest.raises(ContractError):
+        client(transport).exchange_tokens("rs_secret", ["a-1"])

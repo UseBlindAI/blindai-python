@@ -92,6 +92,8 @@ class BlindAIClient:
         """
         if not runtime_secret:
             raise ValueError("runtime_secret is required")
+        if isinstance(agent_ids, (str, bytes)):
+            raise TypeError("agent_ids must be a list of ids, not one string")
         body = self._post(TOKENS_PATH, {"runtime_secret": runtime_secret,
                                         "agent_ids": list(agent_ids)})
         return TokenGrant.from_wire(body)
