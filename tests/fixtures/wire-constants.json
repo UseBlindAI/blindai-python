@@ -1,0 +1,79 @@
+{
+  "$comment": [
+    "The wire contract between a BlindAI control plane and any client that carries an identity",
+    "token. Machine-readable because it is checked, not read: the control plane asserts against",
+    "this file in tests/control_plane/test_flag.py, and each client repo runs the same assertion",
+    "against its own constant. That is what makes this the source of truth rather than a fourth",
+    "copy of it.",
+    "",
+    "It exists because the header name lived in three places — control_plane/enforcement.py and",
+    "two SDK modules — kept in step by one test and a comment reading 'all three must change",
+    "together'. That test could only run where all three were importable, which is to say in the",
+    "monorepo, which is exactly where the clients were about to stop living. Deleting the monorepo",
+    "SDK copies without moving the constant first would have deleted the only thing checking it.",
+    "",
+    "LICENCE: this file is Apache-2.0 material under the line the user drew on 2026-09-14 —",
+    "manifest format, runtime registration protocol, identity token claims and verification rules,",
+    "decision record schema are public; resolution, composition, exception semantics and anything",
+    "that DECIDES stay BSL 1.1 in the monorepo. Nothing that decides is described here: a header",
+    "name and a claim set tell you how to present a token, never what it will be permitted to do.",
+    "",
+    "When the specs repo is created this file moves there verbatim and the monorepo consumes it."
+  ],
+  "version": "1.0.0",
+  "identity": {
+    "header": "X-BlindAI-Identity",
+    "$header_comment": [
+      "The HTTP header carrying the identity token. A client sends it only when it holds a token;",
+      "absent is a valid state and must not be sent empty, because an empty header and a missing",
+      "one reach the route as different things."
+    ],
+    "token": {
+      "algorithm": "EdDSA",
+      "curve": "Ed25519",
+      "header_fields": [
+        "kid"
+      ],
+      "claims": {
+        "required": [
+          "iss",
+          "sub",
+          "rt",
+          "sp",
+          "path",
+          "kind",
+          "iat",
+          "exp"
+        ],
+        "meanings": {
+          "iss": "isolation space id — the signing authority, and the JWKS to verify against",
+          "sub": "agent id",
+          "rt": "runtime id",
+          "sp": "space id",
+          "path": "the space's path in the tree",
+          "kind": "runtime kind",
+          "iat": "issued at, seconds since epoch",
+          "exp": "expiry, seconds since epoch"
+        },
+        "optional": {
+          "mf": "whether the runtime was manifested when the token was minted (spec 4); absent on tokens minted before it, and a verifier treats absent as false",
+          "al": "the agent's autonomy level when the token was minted: autonomous, supervised or manual; read only on the degraded identity path, absent on tokens minted before it, and a verifier treats absent as autonomous"
+        }
+      }
+    }
+  },
+  "jwks": {
+    "key_fields": [
+      "kty",
+      "crv",
+      "alg",
+      "use",
+      "kid",
+      "x"
+    ],
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "alg": "EdDSA",
+    "use": "sig"
+  }
+}

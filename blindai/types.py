@@ -57,3 +57,26 @@ class Decision:
     @property
     def allowed(self) -> bool:
         return not self.blocked
+
+
+@dataclass(frozen=True)
+class TokenGrant:
+    """Identity tokens for a runtime's agents, as `/v1/cp/tokens` granted them."""
+
+    tokens: dict[str, str]
+    expires_in: int
+
+    @classmethod
+    def from_wire(cls, body: Any) -> TokenGrant:
+        from .errors import ContractError
+        if not isinstance(body, dict) or not isinstance(body.get("tokens"), dict):
+            raise ContractError("not a token grant: missing 'tokens'")
+        tokens = body["tokens"]
+        if not all(isinstance(k, str) and isinstance(v, str) for k, v in tokens.items()):
+            raise ContractError("not a token grant: 'tokens' must map agent ids to strings")
+        expires_in = body.get("expires_in")
+        if not isinstance(expires_in, int) or isinstance(expires_in, bool):
+            raise ContractError("not a token grant: 'expires_in' is not an integer")
+        if expires_in <= 0:
+            raise ContractError("not a token grant: 'expires_in' is not positive")
+        return cls(tokens=dict(tokens), expires_in=expires_in)

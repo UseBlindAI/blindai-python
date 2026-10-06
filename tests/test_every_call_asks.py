@@ -62,6 +62,10 @@ RAG_BODY = {"threats_found": False, "total_documents": 1, "safe_count": 1,
     ("authorize", lambda c: c.authorize("hello"), None),
     ("scan", lambda c: c.scan("hello"), None),
     ("rag_scan", lambda c: c.rag_scan([{"content": "hello"}]), lambda r: RAG_BODY),
+    ("authorize with an identity token",
+     lambda c: c.authorize("pay", tool="pay", identity_token="tok"), None),
+    ("exchange_tokens", lambda c: c.exchange_tokens("rs_secret", ["a-1"]),
+     lambda r: {"tokens": {"a-1": "tok"}, "expires_in": 60}),
 ])
 def test_a_returning_call_made_exactly_one_request(name, call, body_for):
     state, transport = counting_transport(body_for)
@@ -134,3 +138,13 @@ def test_the_decision_came_from_this_requests_response_not_an_earlier_one():
     assert first.raw["request_id"] == state["nonces"][0]
     assert second.raw["request_id"] == state["nonces"][1], (
         "the second decision carried the first response back: an answer was reused")
+
+
+def test_a_second_exchange_asks_again():
+    """A token cache is a cache of an identity decision: a revoked agent would keep its token until
+    the cache said otherwise. Each exchange is its own request."""
+    state, transport = counting_transport(lambda r: {"tokens": {"a-1": "tok"}, "expires_in": 60})
+    c = client(transport)
+    c.exchange_tokens("rs_secret", ["a-1"])
+    c.exchange_tokens("rs_secret", ["a-1"])
+    assert state["requests"] == 2
