@@ -49,8 +49,24 @@ jobs:
       BLINDAI_BASE_URL: ${{ secrets.BLINDAI_CONTRACT_BASE_URL }}
       BLINDAI_API_KEY: ${{ secrets.BLINDAI_CONTRACT_API_KEY }}
     steps:
+      # Optional until switch-on (Elisha's ruling, 2026-10-06, option b): with no key, or a value
+      # that is not a BlindAI API key (ba_...), the job says so and skips, instead of failing every
+      # PR on a secret nobody can fix before switch-on. At switch-on a proper key and
+      # BLINDAI_RUNTIME_SECRET are set and this job is required again. The value is never printed.
+      - id: key
+        run: |
+          if [ -n "$BLINDAI_BASE_URL" ] && [ "${BLINDAI_API_KEY#ba_}" != "$BLINDAI_API_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=contract tests skipped::BLINDAI_CONTRACT_API_KEY is absent or not a ba_ API key (optional until switch-on, 2026-10-06)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.key.outputs.ready == 'true'
       - uses: actions/setup-python@v5
+        if: steps.key.outputs.ready == 'true'
         with: { python-version: '3.11' }
       - run: pip install -e ".[dev]"
+        if: steps.key.outputs.ready == 'true'
       - run: pytest tests/contract -p no:cacheprovider
+        if: steps.key.outputs.ready == 'true'
