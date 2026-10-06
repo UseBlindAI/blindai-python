@@ -24,11 +24,13 @@ from .errors import (
 from .parse import parse_decision
 from .rate_limit import RateLimiter, RateLimitExceeded
 from .session import Session
-from .types import PRESETS, ROLES, Decision, ThreatDetail
+from .types import PRESETS, ROLES, Decision, ThreatDetail, TokenGrant
+from .wire import IDENTITY_HEADER
 
 __version__ = "0.1.0"
 
 __all__ = [
+                     "IDENTITY_HEADER",
                      "PRESETS",
                      "ROLES",
                      "ApiError",
@@ -43,6 +45,7 @@ __all__ = [
                      "Session",
                      "ThreatDetail",
                      "TimeoutError",
+                     "TokenGrant",
                      "TransportError",
                      "ValidationError",
                      "parse_decision",

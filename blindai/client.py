@@ -18,7 +18,8 @@ from .errors import TimeoutError as BlindAITimeoutError
 from .errors import TransportError
 from .parse import parse_decision
 from .rate_limit import RateLimiter
-from .types import Decision
+from .types import Decision, TokenGrant
+from .wire import IDENTITY_HEADER, TOKENS_PATH
 
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_MAX_RETRIES = 2
@@ -66,13 +67,34 @@ class BlindAIClient:
 
     # -- public surface -------------------------------------------------------------------
 
-    def authorize(self, input_text: str, **fields: Any) -> Decision:
-        """POST /v1/authorize. Exactly one request, or an exception."""
-        return parse_decision(self._post("/v1/authorize", _body(input_text, fields)))
+    def authorize(self, input_text: str, *, identity_token: str | None = None,
+                  **fields: Any) -> Decision:
+        """POST /v1/authorize. Exactly one request, or an exception.
 
-    def scan(self, input_text: str, **fields: Any) -> Decision:
+        `identity_token`: the agent's token from `exchange_tokens`. A tool call needs one while the
+        deployment's control plane is on; it is refused `identity_token_required` without.
+        """
+        return parse_decision(self._post("/v1/authorize", _body(input_text, fields),
+                                         headers=_identity(identity_token)))
+
+    def scan(self, input_text: str, *, identity_token: str | None = None,
+             **fields: Any) -> Decision:
         """POST /v1/scan -- identical models to authorize; the non-enforcing sibling."""
-        return parse_decision(self._post("/v1/scan", _body(input_text, fields)))
+        return parse_decision(self._post("/v1/scan", _body(input_text, fields),
+                                         headers=_identity(identity_token)))
+
+    def exchange_tokens(self, runtime_secret: str, agent_ids: Sequence[str]) -> TokenGrant:
+        """POST /v1/cp/tokens: a runtime's secret for its agents' identity tokens.
+
+        Exactly one request, or an exception. An agent id the runtime does not own, or one that is
+        not active, is absent from the grant rather than an error -- the server's own rule, so a
+        caller cannot probe which agents exist. Tokens are short-lived (`expires_in` seconds).
+        """
+        if not runtime_secret:
+            raise ValueError("runtime_secret is required")
+        body = self._post(TOKENS_PATH, {"runtime_secret": runtime_secret,
+                                        "agent_ids": list(agent_ids)})
+        return TokenGrant.from_wire(body)
 
     def rag_scan(self, documents: Sequence[dict[str, Any]],
                  threshold: float | None = None) -> dict[str, Any]:
@@ -121,14 +143,15 @@ class BlindAIClient:
 
     # -- internals ------------------------------------------------------------------------
 
-    def _post(self, path: str, payload: dict[str, Any]) -> Any:
+    def _post(self, path: str, payload: dict[str, Any],
+              headers: dict[str, str] | None = None) -> Any:
         if self.rate_limiter is not None:
             self.rate_limiter.acquire()   # raises; never returns a verdict
 
         last: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
-                response = self._client.post(path, json=payload)
+                response = self._client.post(path, json=payload, headers=headers)
             except httpx.TimeoutException:
                 last = BlindAITimeoutError(f"request to {path} timed out")
             except httpx.RequestError as exc:
@@ -153,6 +176,15 @@ class BlindAIClient:
 
         assert last is not None
         raise last
+
+
+def _identity(token: str | None) -> dict[str, str] | None:
+    """The identity header, only when a token is held -- never sent empty (wire-constants.json)."""
+    if token is None:
+        return None
+    if not isinstance(token, str) or not token.strip():
+        raise ValueError("identity_token must be a non-empty string, or omitted")
+    return {IDENTITY_HEADER: token}
 
 
 def _body(input_text: str, fields: dict[str, Any]) -> dict[str, Any]:

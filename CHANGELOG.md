@@ -5,6 +5,16 @@ All notable changes to the BlindAI Python SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- **Identity tokens** (BlindAI pilot S, 2026-10-06). `exchange_tokens(runtime_secret, agent_ids)`
+  trades a runtime's secret for its agents' identity tokens at `/v1/cp/tokens`; `authorize` and
+  `scan` take `identity_token=` and send it as `X-BlindAI-Identity` -- only when given, never empty.
+  A tool call needs one on a deployment whose control plane is on. Each exchange is its own request:
+  a token cache would be a cache of an identity decision.
+- `blindai.wire.IDENTITY_HEADER` is held to the spec's `wire-constants.json` by `tests/test_wire.py`.
+- Not published: the package name is chosen first, then 0.1.0 is published once under it.
+
 ## [Unreleased]
 
 ## [0.1.0] - 2026-09-14
